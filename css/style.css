@@ -1,0 +1,1097 @@
+/* ===== Sun V2 — visual design system ===== */
+
+:root {
+  --bg: #000000;
+  /* "Clear glass" (vs heavy frost): the milkiness came from the big blur radius, not
+     the tint. We keep a barely-there light film so the map reads THROUGH the glass,
+     a low blur, a crisp bright rim, and a top sheen — the Reddit-style look. */
+  --surface: rgba(255, 255, 255, 0.05);       /* faint light glass film (pills/buttons) */
+  --surface-strong: rgba(18, 22, 30, 0.30);   /* panels/modals: enough body to read text on */
+  --border: rgba(255, 255, 255, 0.22);        /* crisp bright glass rim */
+  --border-strong: rgba(255, 255, 255, 0.34);
+  --glass-blur: 5px;                          /* clear, not frosted (was 12–16px) */
+  --glass-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+  --text: var(--e-ink, #fff);                 /* the kit's ink: pure white */
+  --text-dim: rgba(243, 244, 246, 0.62);
+  --text-faint: rgba(243, 244, 246, 0.38);
+  --gold: #ffb845;
+  --gold-soft: rgba(255, 184, 69, 0.22);
+  --moonblue: #d0d8e8;
+  --moonblue-soft: rgba(208, 216, 232, 0.18);
+  --sun-rise: #ff8a3d;
+  --sun-set: #ff5e3d;
+  --sun-mid: #fff1c2;
+  --reflect: #4dd2ff;
+  --reflect-soft: rgba(77, 210, 255, 0.22);
+  --shadow-clr: #3d5aad;
+  --shadow-soft: rgba(61, 90, 173, 0.22);
+  --twilight-civil: rgba(38, 64, 110, 0.55);
+  --twilight-nautical: rgba(20, 32, 60, 0.65);
+  --twilight-astro: rgba(8, 12, 28, 0.75);
+  --shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0.5px 0 rgba(255, 255, 255, 0.10) inset;
+  --radius: 999px;        /* default: pill/capsule ends for small UI elements */
+  --radius-container: 28px; /* large containers (dock, panels) — rounded, but corners don't clip content */
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* Thumb size shared between the bottom time slider's sun/moon marker (#scrubber)
+     and the two right-edge vertical sliders, so they can never visually drift apart
+     (v108 — see LOG 2026-07-18). */
+  --thumb-size: 26px;
+
+  /* ----- Right-edge side-control column layout (v108) -----
+     The tilt slider, radius slider, and edge-controls (locate + compass) are sized
+     from AVAILABLE space rather than fixed vh fractions, so the column never grows
+     into the bottom dock's time-slider pill on short iPhones — the dock's height
+     is dynamic (past-time warning, caster/floor panel) and a fixed vh guess for the
+     side column can't see that. --dock-reserve-h is a conservative worst-case dock
+     height (scrubber + control row + past-warning + caster/floor panel + gaps) with
+     a margin, so the reserved zone is always at least as tall as the real dock. */
+  --side-top: calc(12px + var(--safe-top));
+  --dock-reserve-h: 280px;
+  --side-gap1: 18px;    /* gap between the tilt slider and the radius slider */
+  --side-gap2: 14px;    /* gap between the radius slider and the edge-controls buttons */
+  --edge-block-h: 96px; /* locate + compass buttons: 44px x 2 + 8px gap */
+  --side-avail: calc(100vh - var(--side-top) - var(--dock-reserve-h) - var(--safe-bottom) - var(--side-gap1) - var(--side-gap2) - var(--edge-block-h));
+  --side-avail: calc(100svh - var(--side-top) - var(--dock-reserve-h) - var(--safe-bottom) - var(--side-gap1) - var(--side-gap2) - var(--edge-block-h));
+  /* Each vslider gets half of whatever's left; clamped so it never collapses below a
+     usable size and never grows past the original 26vh/26svh sizing on tall phones. */
+  --vslider-h: clamp(60px, calc(var(--side-avail) / 2), 26vh);
+  --vslider-h: clamp(60px, calc(var(--side-avail) / 2), 26svh);
+
+  /* Half of the vslider's 44px width: the radius of its glass-pill end-caps. Thumb
+     travel is inset by this (see .vslider padding below) so at each extreme the
+     thumb sits concentric with the rounded pill end, not jammed against it. */
+  --side-cap-radius: 22px;
+
+  /* Tiny build-version stamp, extreme bottom-left corner (v109). One-line adjustable —
+     Blair wants to test legibility at ~4pt. */
+  --version-tag-size: 4pt;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0;
+  /* 100dvh, not 100%: on iOS the layout viewport stops short of the home-indicator
+     strip, which left a black band along the bottom while the top ran correctly
+     past the camera (Blair, 2026-07-29). */
+  height: 100dvh; width: 100%;
+  /* iOS standalone PWA otherwise leaves the bottom safe-area uncovered (showed
+     as a dark strip). fill-available extends the page through it. */
+  min-height: -webkit-fill-available;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--e-font, -apple-system, BlinkMacSystemFont, system-ui, sans-serif);   /* the kit's system stack; Inter is gone */
+  font-size: 15px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* Map needs pan/pinch but UI must not respond to page pinch zoom */
+#dock, #toast, #hint { touch-action: manipulation; }
+
+button { font-family: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+input { font-family: inherit; color: inherit; }
+
+#map { position: fixed; inset: 0; height: 100dvh; background: var(--bg); }
+#vignette {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 1; /* above the map canvas, below all UI chrome */
+  background: radial-gradient(ellipse 78% 82% at 50% 44%,
+    rgba(0,0,0,0) 40%, rgba(0,0,0,0.45) 78%, rgba(0,0,0,0.72) 100%);
+}
+/* Build version stamp — extreme bottom-left corner, deliberately tiny (Blair testing
+   legibility at ~4pt, one-line adjustable via --version-tag-size). Same font-family/
+   weight as the app's button labels (Inter 500 — see #date-btn / #time-hh / #sun-alt). */
+#version-tag {
+  position: fixed;
+  left: 8px;
+  /* clear of the home indicator and of the dock's new offset; it had ended up
+     under the dock / off-screen after the 100dvh change (Blair, 2026-07-31) */
+  bottom: calc(2px + var(--safe-bottom));
+  z-index: 60;
+  pointer-events: none;
+  font-family: inherit;
+  font-weight: 500;
+  font-size: var(--version-tag-size);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.55);
+}
+/* Hide MapLibre's stock chrome (controls, attribution) but NOT markers — markers
+   live inside .maplibregl-canvas-container in MapLibre 4 and were being nuked
+   by an over-broad `> *:not(canvas)` selector. */
+.maplibregl-ctrl-attrib,
+.maplibregl-ctrl-bottom-right,
+.maplibregl-ctrl-top-left,
+.maplibregl-ctrl-top-right { display: none !important; }
+.maplibregl-canvas { outline: none !important; transition: opacity 0.55s ease; filter: brightness(1.6) contrast(1.1); }
+/* Scale bar: position it just above the dock */
+.maplibregl-ctrl-bottom-left {
+  bottom: calc(var(--safe-bottom) + 170px) !important;
+  left: 10px !important;
+}
+.maplibregl-ctrl-scale {
+  background: rgba(10,14,20,0.6) !important;
+  border-color: rgba(255,255,255,0.35) !important;
+  color: rgba(255,255,255,0.65) !important;
+  font-size: 10px !important;
+  line-height: 16px !important;
+  padding: 0 5px !important;
+  border-radius: 4px !important;
+  font-family: inherit !important;
+}
+/* Light mode is a REAL light theme now (basemap recoloured via paint properties in
+   map.js applyLightTheme), not a canvas invert — so we drop the dark-mode brightness
+   boost and let the luminous overlay graphics keep their true colours. NOTE: those
+   graphics use additive blending tuned for a dark background, so they read softer on
+   the light map; tuning that is the known on-device follow-up. */
+body.invert .maplibregl-canvas { filter: none; }
+body.invert #map { background: #e8e8ea; }
+/* Vignette fades to LIGHT in light mode (the dark fade would put grime in the corners). */
+body.invert #vignette {
+  background: radial-gradient(ellipse 78% 82% at 50% 44%,
+    rgba(232,232,234,0) 42%, rgba(226,228,232,0.34) 80%, rgba(214,217,223,0.6) 100%);
+}
+
+.glass {
+  /* Panels/modals carry text, so they get a touch more body than the pills. */
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-container);
+  backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), var(--glass-sheen);
+}
+
+/* Boot veil: opaque black over the whole map while the emblem composes; app.js fades
+   its opacity to 0 (then display:none) to reveal all the graphics at once. */
+#boot-veil {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 900;
+  opacity: 1;
+  pointer-events: none;
+  transition: opacity 1050ms ease;   /* initial graphics fade-in (was 700ms) */
+}
+
+/* ===== Boot intro =====
+   The app opens on the graphics-only "emblem" (arc dome over the crossing rays) with
+   no chrome, holds ~1.8s, then app.js removes .booting and the UI fades in while the
+   camera tilts up to the interactive view. These elements always carry an opacity
+   transition so the reveal is smooth; .booting just holds them at 0 first. */
+#dock, #body-toggle, .vslider, #edge-controls, #version-tag {
+  transition: opacity 900ms ease;
+}
+body.booting #dock,
+body.booting #body-toggle,
+body.booting .vslider,
+body.booting #edge-controls,
+body.booting #version-tag {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ===== Bottom dock — transparent layout shell; each child floats as glass ===== */
+#dock {
+  position: fixed;
+  /* positioning context for the floated #past-warning pill above it */
+  /* Sit low — down at the bottom edge (over the now-black/map safe strip),
+     not lifted above the home indicator. */
+  /* was 8px - the corners were being clipped by the phone's own screen radius
+     (Blair, 2026-07-31). */
+  bottom: calc(18px + var(--safe-bottom));
+  left: calc(14px + var(--safe-left));
+  right: calc(14px + var(--safe-right));
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+/* Shared "floating glass pill" look for the elements that used to live in the box.
+   Clear glass: a low blur so the map shows through (reads as glass, not frost), a
+   bright hairline rim + top sheen for the glassy edge. The low blur is also far
+   cheaper on the iOS GPU than the old 12px — many static pills over a MOVING WebGL
+   map used to saturate it and freeze gestures, so clearer is also faster. */
+#scrubber-wrap, #time-hh-wrap, #date-btn, #sun-alt, .ctlbtn, .elev-row, .vslider {
+  background: var(--surface);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32), var(--glass-sheen);
+}
+
+/* ── Liquid glass (body.lg, set by the UI kit's glass layer once it has drawn a frame) ───────
+   Real refractive panes are drawn for every [data-glass] surface, inside the
+   map's own WebGL context. So those surfaces stop being CSS glass — no fill, no
+   backdrop-filter (stacking a blur on the shader would double-blur AND re-incur
+   the GPU cost this replaces; see the note above about pills freezing gestures
+   on iOS). The hairline rim is kept: it's what gives the edge its specular line.
+
+   The dock's CHILDREN are deliberately NOT panes. A pane inside a pane merges in
+   the shared distance field and smears into one blob — so the pills inside the
+   dock are plain, and the dock is the single card behind them. */
+body.lg #dock,
+body.lg #body-toggle,
+body.lg .vslider,
+body.lg #locate-btn,
+body.lg #compass-toggle,
+body.lg #toast,
+body.lg #save-modal,
+body.lg #data-modal {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+  /* NO border. The 1px rim reads as a drawn outline rather than as glass — Apple's
+     has none, and the shader's Fresnel term already defines the edge. */
+  border-color: transparent;
+}
+
+/* Controls that sit INSIDE the dock card: no glass of their own, just a rim so
+   they still read as discrete targets against the one pane behind them. */
+body.lg #scrubber-wrap,
+body.lg #time-hh-wrap,
+body.lg #date-btn,
+body.lg #sun-alt,
+body.lg .ctlbtn,
+body.lg .elev-row {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+  border-color: transparent;
+}
+body.lg #scrubber-wrap { background: rgba(10, 12, 18, 0.14); }
+/* Glass over sunlit land washes out. A faint dark wash under the text-bearing
+   surfaces plus a hard text shadow keeps them readable without killing the
+   refraction (Blair, 2026-07-29 - save screen and lower UI over land). */
+body.lg #dock, body.lg #save-modal, body.lg #data-modal { background: rgba(6, 9, 14, 0.22); }
+body.lg #dock, body.lg #save-modal, body.lg #data-modal,
+body.lg #time-hh, body.lg #date-label, body.lg #sun-alt {
+  text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 12px rgba(0,0,0,0.5);
+}
+/* Glass buttons (kit 1.0.0). Everything marked data-glass="button" inside a pane is its
+   own piece of glass set flush in the pane: the shader draws the lens and the seam, so the
+   element goes clear and only its label is left. A toggle that is ON is stained amber
+   (app.js syncTints sets data-tint); the shader then says which ink reads on that glass.
+   data-glass-off is the kit's "this one did not fit, give it its CSS skin back". */
+body.lg [data-glass="button"]:not([data-glass-off]) {
+  background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none;
+  box-shadow: none; border-color: transparent;
+}
+body.lg [data-glass][data-tint]:not([data-glass-off]) { color: var(--e-glass-ink, var(--text)); }
+body.lg .ctlbtn.toggle[aria-pressed="true"][data-glass-off] { background: rgba(255, 184, 69, 0.20); }
+
+/* THE EDGE RULE (Blair, on device 2026-07-26): content must not sit flush to a
+   pane's edge. The outer ~16px of a pane is the bevel — the band where the
+   background is displaced — so anything there is visibly warped. Inset the dock's
+   contents past it. Same rule applies to every glass surface in every app; it's
+   written up as failure mode 6 in (internal path) */
+body.lg #dock {
+  /* Just enough to clear the bevel band; the pills inside carry their own
+     padding, so anything more here is pure dead height (Blair, 2026-07-29 -
+     the dock had become much taller than it needed to be). */
+  padding: 10px 12px calc(10px + var(--safe-bottom));
+  gap: 8px;
+}
+body.lg #shadow-elev-panel { padding-left: 2px; padding-right: 2px; }
+
+/* Vertical sliders are their own tall panes; keep the thumb off the rounded caps. */
+body.lg .vslider { padding-top: 18px; padding-bottom: 18px; }
+
+/* ----- Sun/time slider: its own glass pill ----- */
+#scrubber-wrap {
+  position: relative;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-radius: var(--radius);
+}
+
+#scrubber {
+  -webkit-appearance: none; appearance: none;
+  width: 100%;
+  height: 5px;
+  /* The gold ramp encodes time of day, so it stays - but it is masked past the
+     thumb so the filled portion reads as a line the thumb is extending, matching
+     the other sliders (Blair, 2026-07-29). */
+  /* The track itself is transparent. The coloured ramp and the faint remainder are
+     drawn by the WRAPPER's pseudo-elements - masking the input clipped the
+     sun/moon thumb along with the track (Blair, 2026-07-31: the marker vanished). */
+  background: transparent;
+  border-radius: 999px;
+  outline: none;
+}
+/* faint full-width remainder */
+#scrubber-wrap::after {
+  content: '';
+  position: absolute; left: 16px; right: 16px; top: 50%;
+  height: 5px; margin-top: -2.5px; border-radius: 999px;
+  background: rgba(255,255,255,0.10);
+  pointer-events: none; z-index: 0;
+}
+/* The time-of-day ramp. FULL WIDTH — dimmed past the thumb, not erased.
+   Blair, 2026-09-15: "the light/dark gradient on the line it slides along only
+   goes to noon, after that it's just a grey line." It was masked to the thumb
+   (2026-07-29, to read as a line being extended), which is right for the
+   elevation sliders where the track is a quantity, and wrong here: this track is
+   a picture of the day, so hiding the part past the thumb threw away the only
+   at-a-glance answer to "how much daylight is left". A partial-alpha mask keeps
+   both readings - the travelled part is solid, the rest is still there.
+
+   --day-ramp is written by js/ui/scrubber.js from the real sunrise, sunset,
+   golden-hour and twilight times for the day and place on screen. The literal
+   below is only the fallback for the frames before the first redraw. */
+#scrubber-wrap::before {
+  content: '';
+  position: absolute; left: 16px; right: 16px; top: 50%;
+  height: 5px; margin-top: -2.5px; border-radius: 999px;
+  background: var(--day-ramp, linear-gradient(90deg,
+    #05070f 0%, #05070f 10%,
+    var(--gold) 24%, var(--sun-mid) 50%, var(--gold) 76%,
+    #05070f 90%, #05070f 100%));
+  -webkit-mask-image: linear-gradient(90deg,
+    #000 0 var(--fill, 50%), rgba(0,0,0,0.42) var(--fill, 50%), rgba(0,0,0,0.42) 100%);
+  mask-image: linear-gradient(90deg,
+    #000 0 var(--fill, 50%), rgba(0,0,0,0.42) var(--fill, 50%), rgba(0,0,0,0.42) 100%);
+  pointer-events: none; z-index: 1;
+}
+#scrubber { position: relative; z-index: 2; }
+
+body.mode-moon #scrubber {
+  background: linear-gradient(90deg,
+    #000 0%,
+    #000 10%,
+    var(--moonblue) 50%,
+    #000 90%,
+    #000 100%);
+}
+
+/* Sun mode: golden thumb. Size is --thumb-size — the "sun/moon marker" — also
+   reused by the two vertical sliders' thumbs so they stay pixel-identical. */
+#scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: var(--thumb-size); height: var(--thumb-size);
+  border-radius: 50%;
+  background: var(--gold);
+  border: 2px solid rgba(0,0,0,0.45);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 0 0 6px rgba(255,184,69,0.12);
+  cursor: grab;
+}
+#scrubber::-moz-range-thumb {
+  width: var(--thumb-size); height: var(--thumb-size); border-radius: 50%;
+  background: var(--gold); border: 2px solid rgba(0,0,0,0.45); cursor: grab;
+}
+/* Moon mode: the thumb IS the moon, drawn at the day's actual phase.
+   --moon-thumb is an SVG data-URI set by JS from the lunar illumination. */
+body.mode-moon #scrubber::-webkit-slider-thumb {
+  background: #11151f var(--moon-thumb, none) center/cover no-repeat;
+  border: 2px solid rgba(255,255,255,0.35);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.45), 0 0 0 6px rgba(208,216,232,0.12);
+}
+body.mode-moon #scrubber::-moz-range-thumb {
+  background: #11151f var(--moon-thumb, none) center/cover no-repeat;
+  border: 2px solid rgba(255,255,255,0.35);
+}
+
+#scrubber-ticks {
+  position: absolute;
+  left: 16px; right: 16px;
+  top: 50%;
+  height: 14px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.tick {
+  position: absolute; top: 0;
+  width: 2px; height: 14px;
+  background: rgba(255,255,255,0.7);
+  border-radius: 1px;
+  transform: translateX(-1px);
+}
+.tick.sunrise { background: var(--sun-rise); }
+.tick.sunset  { background: var(--sun-set); }
+
+#time-hh-wrap {
+  border-radius: var(--radius);
+  padding: 7px 10px;
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+#time-hh {
+  /* Match the "Today" date button: 12px / 500 for a consistent control row. */
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+/* Date input is a transparent overlay that fills the date button.
+   The user's tap hits the input directly, which opens the native date
+   picker on all platforms including iOS Safari PWA mode. The button
+   text shows through because the input is opacity:0. */
+#date-btn { position: relative; overflow: hidden; }
+#date-input {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: 0; padding: 0; margin: 0;
+  font-size: 16px; /* prevent iOS auto-zoom on focus */
+}
+#date-btn {
+  font-size: 12px;
+  color: var(--text);
+  height: auto;
+  line-height: 1;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-weight: 500;
+}
+#sun-alt {
+  font-size: 12px;
+  font-weight: 500;   /* match the "Today" date button */
+  color: var(--gold);
+  padding: 8px 9px;
+  border-radius: var(--radius);
+}
+#sun-alt.below { color: var(--text-dim); }
+body.mode-moon #sun-alt:not(.below) { color: var(--moonblue); }
+
+#rise-set {
+  font-size: 11px;
+  color: var(--text-dim);
+  display: flex;
+  gap: 8px;
+  white-space: nowrap;
+}
+#rise-label { color: var(--sun-rise); }
+#set-label  { color: var(--sun-set); }
+body.mode-moon #rise-label, body.mode-moon #set-label { color: var(--moonblue); }
+
+/* ----- Control row ----- */
+/* Consolidated single line: time, date, angle pills + icon buttons. */
+#control-row {
+  display: flex;
+  align-items: center;
+  /* Wrap is the safety net so nothing is ever clipped, but the sizing below is tuned
+     so the whole row (incl. the light-mode/invert button) fits one line on an iPhone. */
+  flex-wrap: wrap;
+  gap: 4px 5px;
+  padding: 0;
+  justify-content: center;
+}
+/* Smaller circular buttons + tighter pill padding so the full set fits one row. */
+#control-row .ctlbtn { width: 38px; height: 38px; flex: 0 0 auto; }
+#control-row #time-hh-wrap,
+#control-row #date-btn,
+#control-row #sun-alt {
+  flex: 0 0 auto;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+}
+/* Stable width so the button doesn't resize between "Today" and e.g. "Nov 12". */
+#control-row #date-btn { min-width: 58px; }
+
+/* ----- Past-time warning ----- */
+/* Sits right below the control row; only shown when the selected datetime is
+   earlier than right now (within the last 60 days — see app.js updateNowText).
+   Distinct red glass so it reads as a caution, not just another pill. */
+/* Sits ABOVE the dock rather than inside it. Inside, showing/hiding it resized
+   the whole glass panel, which was both distracting and made the dock height
+   jump (Blair, 2026-07-31). Floating it also gives it more emphasis. */
+#past-warning {
+  /* Floated above the dock, not inside it. */
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(100% + 10px);
+  white-space: nowrap;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  background: rgba(120, 20, 20, 0.55);
+  border: 1px solid rgba(255, 90, 90, 0.55);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.42);
+  color: #ffb3b3;
+  font-size: 12px;
+  font-weight: 500;
+}
+/* The #past-warning ID rule above outguns the browser's built-in [hidden]
+   attribute selector on specificity, so the `hidden` attribute set from
+   app.js was being ignored and the pill stayed visible always. */
+#past-warning[hidden] { display: none; }
+#past-warning svg { flex: 0 0 auto; color: #ff6b6b; }
+
+/* Right-edge button cluster, under the vertical sliders. Top is derived directly
+   from --vslider-h (v108) so it always sits exactly --side-gap2 below the actual
+   (responsively-sized) bottom of the radius slider — it can't drift out of sync
+   with the sliders' own height the way the old fixed 52vh+44px guess could on
+   short phones. See the --side-* vars at :root. */
+#edge-controls {
+  position: fixed;
+  right: 10px;
+  top: calc(var(--side-top) + (var(--vslider-h) * 2) + var(--side-gap1) + var(--side-gap2));
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ctlbtn {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;  /* circular icon buttons, Reddit-style */
+  background: var(--surface);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 140ms ease, color 140ms ease, opacity 140ms ease;
+}
+.ctlbtn:hover { background: rgba(255,255,255,0.12); }
+.ctlbtn:disabled,
+.ctlbtn.disabled {
+  opacity: 0.32;
+  pointer-events: none;
+}
+
+.ctlbtn .ico { display: block; }
+.ctlbtn .ico.hide { display: none !important; }
+
+/* On/off toggle visual: gold for all toggles — consistent active state */
+.ctlbtn.toggle.active {
+  background: var(--gold-soft);
+  color: var(--gold);
+  box-shadow: inset 0 0 0 1px rgba(255,184,69,0.4);
+}
+
+/* Body toggle: pinned top-left, lining up with the vertical sliders (top-right)
+   and the left edge of the bottom pills. Dim in sun mode; moonblue in moon. */
+#body-toggle {
+  position: fixed;
+  top: calc(12px + var(--safe-top));
+  left: calc(12px + var(--safe-left));
+  z-index: 5;
+  color: var(--text-dim);
+}
+body.mode-moon #body-toggle {
+  background: var(--moonblue-soft);
+  color: var(--moonblue);
+  box-shadow: inset 0 0 0 1px rgba(208,216,232,0.4);
+}
+/* Invert button: highlight when inverted */
+body.invert #invert-btn {
+  background: var(--gold-soft);
+  color: var(--gold);
+  box-shadow: inset 0 0 0 1px rgba(255,184,69,0.4);
+}
+.ghostbtn {
+  height: 26px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+}
+
+/* ----- Alignment card (small, inside dock) ----- */
+#alignment-card {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: var(--gold-soft);
+  border: 1px solid rgba(255, 184, 69, 0.35);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+#alignment-when { flex: 1; }
+.closebtn {
+  font-size: 18px;
+  color: var(--text-dim);
+  width: 22px; height: 22px;
+}
+
+/* Shadow elevation panel — always visible; dimmed when shadow mode is off */
+#shadow-elev-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: opacity 200ms ease;
+}
+#shadow-elev-panel.disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+.elev-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  min-height: 44px;
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: #ffffff;
+}
+.elev-row label { font-weight: 600; white-space: nowrap; color: #ffffff; min-width: 42px; }
+.elev-row input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  flex: 1; height: 24px;
+  background: transparent; outline: none; cursor: pointer;
+  margin: 0; padding: 0;
+  /* Prevent Chrome/Android from filling track left of thumb in blue */
+  accent-color: rgba(255,255,255,0.25);
+}
+.elev-row input[type=range]::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px;
+  background: linear-gradient(to right,
+    rgba(255,255,255,0.72) 0%,
+    rgba(255,255,255,0.72) var(--fill, 0%),
+    rgba(255,255,255,0.10) var(--fill, 0%),
+    rgba(255,255,255,0.10) 100%);
+}
+.elev-row input[type=range]::-moz-range-track {
+  height: 4px; border-radius: 2px; background: rgba(255,255,255,0.10);
+}
+/* Firefox draws the filled portion itself */
+.elev-row input[type=range]::-moz-range-progress {
+  height: 4px; background: rgba(255,255,255,0.72); border-radius: 2px;
+}
+.elev-row input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, #ffffff 0%, #c8d8e8 55%, #8aaccc 100%);
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.55);
+  cursor: pointer;
+  /* Center the thumb on the 4px track: (4px - 20px) / 2 = -8px */
+  margin-top: -8px;
+}
+.elev-row input[type=range]::-moz-range-thumb {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, #ffffff 0%, #c8d8e8 55%, #8aaccc 100%);
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.55);
+  cursor: pointer;
+}
+/* Tap-to-edit exact value input */
+.elev-num {
+  width: 48px;
+  text-align: right;
+  background: transparent;
+  border: none;
+  /* no underline - it read as an input affordance we don't want (2026-07-29) */
+  border-bottom: none;
+  border-radius: 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: #ffffff;
+  padding: 2px 2px;
+  -moz-appearance: textfield;
+}
+.elev-num::-webkit-inner-spin-button,
+.elev-num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.elev-num:focus {
+  outline: none;
+  color: var(--reflect);
+}
+.elev-unit {
+  font-size: 13px;
+  color: rgba(255,255,255,0.55);
+}
+
+/* ===== Vertical sliders (right edge) =====
+   Custom thin off-white tracks with a small flat thumb.
+   Implemented as a vertical-rotated input range. */
+.vslider {
+  position: fixed;
+  right: 10px;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 44px;
+  z-index: 4;
+  border-radius: var(--radius);
+  touch-action: none;
+  /* Travel end-stops (v108): inset the usable track by (pill end-cap radius minus
+     thumb radius) at each end, on top of the browser's own default thumb-radius
+     inset. Physical top/bottom padding is correct here even though the element is
+     rotated via writing-mode — top/bottom stay the physical (=travel) axis. Net
+     effect: thumb-center range is [cap-radius, length-cap-radius], so at either
+     extreme the thumb sits concentric with the pill's rounded end instead of
+     jammed against it. Value mapping (min..max) is untouched — visual only. */
+  padding-top: calc(var(--side-cap-radius) - (var(--thumb-size) / 2));
+  padding-bottom: calc(var(--side-cap-radius) - (var(--thumb-size) / 2));
+}
+/* Track + thumb mirror the horizontal (caster/floor) sliders exactly:
+   4px off-white track, thumb diameter = --thumb-size (matches the time slider's
+   sun/moon marker, v108). */
+/* Filled track: the line is visible only BELOW the thumb, so the thumb reads as
+   the end of a line it is extending, the way most native sliders behave
+   (Blair, 2026-07-29). --fill is set from the value in js/app.js. Lighter than
+   the old 0.25 so it actually reads against the map. */
+.vslider::-webkit-slider-runnable-track {
+  width: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to top,
+    rgba(255,255,255,0.72) 0%,
+    rgba(255,255,255,0.72) var(--fill, 50%),
+    rgba(255,255,255,0.10) var(--fill, 50%),
+    rgba(255,255,255,0.10) 100%);
+}
+.vslider::-moz-range-track {
+  width: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to top,
+    rgba(255,255,255,0.72) 0%,
+    rgba(255,255,255,0.72) var(--fill, 50%),
+    rgba(255,255,255,0.10) var(--fill, 50%),
+    rgba(255,255,255,0.10) 100%);
+}
+.vslider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: var(--thumb-size); height: var(--thumb-size);
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, #ffffff 0%, #c8d8e8 55%, #8aaccc 100%);
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.55);
+  margin-left: calc((4px - var(--thumb-size)) / 2); /* precise: -(thumb-track)/2 */
+  margin-top: 0; /* Chrome/Windows: prevent default vertical offset */
+}
+.vslider::-moz-range-thumb {
+  width: var(--thumb-size); height: var(--thumb-size);
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, #ffffff 0%, #c8d8e8 55%, #8aaccc 100%);
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.55);
+}
+/* Both vertical sliders are stacked pills in the upper-right, sized to sit ABOVE
+   the bottom dock (the time slider + pills below). Height comes from --vslider-h
+   (computed at :root, v108) — available space after reserving room for the dock —
+   not a fixed vh fraction, so the column shortens itself on short phones instead
+   of overlapping the time-slider pill. See the --side-* vars at :root for the
+   worst-case dock-height reasoning. */
+.vslider.tilt   { top: var(--side-top); height: var(--vslider-h); }
+.vslider.radius { top: calc(var(--side-top) + var(--vslider-h) + var(--side-gap1)); height: var(--vslider-h); }
+
+/* Hint banner */
+#hint {
+  position: fixed;
+  top: calc(12px + var(--safe-top));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  font-size: 13px;
+  z-index: 6;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  white-space: nowrap;
+}
+
+/* 3D arc markers placed via maplibregl.Marker */
+.arc-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff1c2 30%, rgba(255,184,69,0.9) 70%, rgba(255,184,69,0) 100%);
+  box-shadow: 0 0 6px rgba(255,184,69,0.7);
+  pointer-events: none;
+}
+body.mode-moon .arc-dot {
+  background: radial-gradient(circle, #f0f3fa 30%, rgba(208,216,232,0.85) 70%, rgba(208,216,232,0) 100%);
+  box-shadow: 0 0 6px rgba(208,216,232,0.5);
+}
+.arc-dot.head {
+  width: 14px; height: 14px;
+  background: radial-gradient(circle, #fff1c2, var(--gold) 60%, rgba(255,184,69,0) 100%);
+  box-shadow: 0 0 18px 6px rgba(255,184,69,0.6);
+}
+body.mode-moon .arc-dot.head {
+  background: radial-gradient(circle, #f0f3fa, var(--moonblue) 60%, rgba(208,216,232,0) 100%);
+  box-shadow: 0 0 18px 6px rgba(208,216,232,0.5);
+}
+
+/* Shadow-mode 3D markers */
+.caster-sphere {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #c8e6ff, #4dd2ff 70%, #1d6ea8 100%);
+  box-shadow: 0 0 8px rgba(77,210,255,0.6);
+  pointer-events: none;
+}
+.caster-pole {
+  width: 2px;
+  background: rgba(77,210,255,0.85);
+  box-shadow: 0 0 4px rgba(77,210,255,0.6);
+  pointer-events: none;
+  transform-origin: bottom center;
+}
+.shadow-end {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 6px rgba(255,184,69,0.6);
+  pointer-events: none;
+}
+body.mode-moon .shadow-end {
+  background: var(--moonblue);
+  box-shadow: 0 0 6px rgba(208,216,232,0.5);
+}
+
+/* ===== Toast ===== */
+#toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(220px + var(--safe-bottom));
+  padding: 10px 16px;
+  font-size: 13px;
+  z-index: 20;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* ===== Coord labels (DATA mode) ===== */
+.coord-label {
+  position: fixed;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.9);
+  background: rgba(11,14,20,0.72);
+  border-radius: 5px;
+  padding: 3px 6px;
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* ===== Alignment wizard — floats at top of screen ===== */
+#align-panel {
+  position: fixed;
+  top: calc(12px + var(--safe-top));
+  left: calc(6px + var(--safe-left));
+  right: calc(6px + var(--safe-right));
+  max-width: 540px;
+  margin: 0 auto;
+  z-index: 8;
+  padding: 14px 14px 12px;
+}
+.align-close-btn {
+  position: absolute; top: 10px; right: 12px;
+  font-size: 20px; line-height: 1; color: var(--text-dim); cursor: pointer; background: none; border: 0;
+}
+.data-action-btn {
+  width: 100%; height: 38px;
+  border-radius: var(--radius);
+  font-size: 13px; font-weight: 600;
+  background: var(--gold-soft);
+  color: var(--gold);
+  border: 1px solid rgba(255,184,69,0.35);
+  cursor: pointer; font-family: inherit;
+}
+.data-action-btn:disabled { opacity: 0.35; pointer-events: none; }
+.align-label { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; }
+.align-coords { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--text); margin-bottom: 8px; min-height: 18px; }
+.align-ht-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; }
+.align-ht-row label { color: var(--text-dim); min-width: 44px; font-family: inherit; }
+.align-ht-row input { width: 70px; background: rgba(255,255,255,0.08); border: 1px solid var(--border-strong); border-radius: 7px; padding: 5px 8px; font-size: 13px; color: var(--text); text-align: right; -moz-appearance: textfield; font-family: inherit; }
+.align-ht-row input::-webkit-inner-spin-button, .align-ht-row input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.align-ht-row span { color: var(--text-dim); font-size: 13px; }
+.align-hint { font-size: 11px; color: var(--text-faint); margin: 0 0 8px; }
+
+/* ===== Saves modal ===== */
+.saves-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.saves-list-title { margin-top: 16px; }
+/* Load-list header: "Load" label + the positions/full-states scope toggle,
+   styled like the sun/moon body-toggle (same .ctlbtn.toggle.active pattern). */
+.saves-scope-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.saves-scope-btn {
+  width: auto;
+  height: 26px;
+  border-radius: var(--radius);
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+#saves-list { max-height: 42vh; overflow-y: auto; }
+.saves-empty {
+  font-size: 13px;
+  color: var(--text-faint);
+  margin: 0;
+  text-align: center;
+  padding: 12px 0;
+}
+.saves-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.saves-row:last-child { border-bottom: none; }
+.saves-row-name {
+  flex: 1 1 auto;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text);
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  line-height: 1.4;
+  cursor: pointer;
+  min-width: 0;
+}
+.saves-row-name:hover { color: var(--gold); }
+.saves-row-sub {
+  font-size: 11px;
+  color: var(--text-faint);
+  display: block;
+}
+.saves-del-btn {
+  flex: 0 0 auto;
+  font-size: 18px;
+  color: var(--text-dim);
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: none; border: none; cursor: pointer; font-family: inherit;
+}
+.saves-del-btn:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+
+#save-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  padding: 16px;
+  min-width: 280px;
+  max-width: calc(100vw - 32px);
+}
+.save-name-input {
+  display: block;
+  width: 100%;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 14px;
+  color: var(--text);
+  font-family: inherit;
+  margin: 10px 0 12px;
+  outline: none;
+  box-sizing: border-box;
+}
+.save-name-input:focus { border-color: rgba(255,184,69,0.6); }
+.save-modal-btns { display: flex; gap: 8px; }
+.save-modal-btns-secondary { margin-top: 8px; }
+.save-modal-cancel {
+  background: rgba(255,255,255,0.06);
+  color: var(--text-dim);
+  border-color: var(--border-strong);
+}
+
+/* Shot-data dialog: a big read-only readout covering most of the screen. */
+#data-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  padding: 16px;
+  width: calc(100vw - 24px);
+  max-width: 560px;
+  max-height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+}
+/* hidden attribute must beat the ID-level display:flex above, or the dialog
+   shows on load and the close button (which sets hidden) has no visual effect. */
+#data-modal[hidden] { display: none; }
+.data-text {
+  flex: 1 1 auto;
+  overflow: auto;
+  margin: 12px 0;
+  padding: 12px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Coloured dot markers used in alignment wizard labels */
+.dot-a {
+  display: inline-block; width: 10px; height: 10px;
+  border-radius: 50%; background: var(--reflect); /* caster blue */
+  vertical-align: middle; margin: 0 3px;
+}
+.dot-b {
+  display: inline-block; width: 10px; height: 10px;
+  border-radius: 50%; background: var(--gold); /* shadow endpoint gold */
+  vertical-align: middle; margin: 0 3px;
+}
+
+
+/* Home-screen mode, reached from blairz.ca (js/app.js): the way back. */
+#site-back {
+  position: fixed; top: calc(env(safe-area-inset-top, 0px) + 12px); left: 12px; z-index: 60;
+  width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+  color: #fff; background: rgba(8, 8, 10, 0.42); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+body.booting #site-back { opacity: 0; }
+/* The sun/moon button gives up its corner to the back button and sits directly under it. */
+body.has-site-back #site-back { left: calc(12px + var(--safe-left)); z-index: 6; }
+body.has-site-back #body-toggle { top: calc(12px + var(--safe-top) + 44px + 10px); }

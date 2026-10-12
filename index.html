@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Sun and moon alignment, light planning, and shadows on an interactive map.">
+<title>Sun · light planner</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.svg">
+<link rel="preconnect" href="https://tiles.openfreemap.org">
+<link rel="preconnect" href="https://photon.komoot.io">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script>
+// 2026-10-10: the app moved from (dev server) to https://blairz.ca/soluna/.
+// Saved shots live in the browser, filed under the address they were made at, so a plain
+// redirect would leave them behind. The old address therefore packs them into the link it
+// forwards to, and the new address unpacks them here before the app starts.
+(function () {
+  var NEW = 'https://blairz.ca/soluna/';
+  var KEYS = ['sun_saves', 'sun_ui', 'sunv2_reminders_v1'];
+  try {
+    if (location.hostname === '(dev server)') {
+      var bag = {};
+      KEYS.forEach(function (k) { var v = localStorage.getItem(k); if (v) bag[k] = v; });
+      var parts = [];
+      if (location.hash.length > 1) parts.push(location.hash.slice(1));
+      if (Object.keys(bag).length) parts.push('moved=' + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(bag))))));
+      location.replace(NEW + location.search + (parts.length ? '#' + parts.join('&') : ''));
+      return;
+    }
+    var m = location.hash.match(/(?:^#|&)moved=([^&]+)/);
+    if (!m) return;
+    var got = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(m[1])))));
+    KEYS.forEach(function (k) {
+      if (typeof got[k] !== 'string') return;
+      var here = localStorage.getItem(k);
+      if (!here) { localStorage.setItem(k, got[k]); return; }
+      if (k !== 'sun_saves') return;                    // settings already made here win
+      var a = JSON.parse(here), b = JSON.parse(got[k]);  // saves: keep both lists, no doubles
+      var ids = {}; a.forEach(function (s) { ids[s.id] = 1; });
+      b.forEach(function (s) { if (!ids[s.id]) a.push(s); });
+      localStorage.setItem(k, JSON.stringify(a));
+    });
+    var rest = location.hash.slice(1).split('&').filter(function (p) { return p.indexOf('moved=') !== 0; }).join('&');
+    history.replaceState(null, '', location.pathname + location.search + (rest ? '#' + rest : ''));
+  } catch (e) { /* a failed carry-over must never stop the app opening */ }
+})();
+</script>
+<!-- UI kit release 1.0.0, pinned in kit/ (never edit that copy). Loaded for its tokens:
+     font, ink, tint palette. The glass layer is imported by js/app.js. -->
+<link rel="stylesheet" href="kit/ember-ui.css?v=1.0.0">
+<link rel="stylesheet" href="css/style.css?v=41">
+<!-- Sentry error monitoring (optional). To enable:
+     1. Sign up at sentry.io (free tier) and create a Browser JS project.
+     2. Uncomment the script below and replace the src version if needed.
+     3. Set window.SENTRY_DSN below to your project's DSN.
+<script src="https://browser.sentry-cdn.com/8.54.0/bundle.min.js" crossorigin="anonymous"></script>
+<script>window.SENTRY_DSN = 'https://YOUR_KEY@oXXX.ingest.sentry.io/YOUR_PROJECT_ID';</script>
+-->
+</head>
+<body class="booting">
+<div id="map" aria-label="Map"></div>
+<!-- Boot veil: opaque black over the map while the emblem composes, so every graphic
+     (arc, rays, rise/set, pole) appears AT ONCE when it lifts — not staggered. -->
+<div id="boot-veil"></div>
+<!-- Vignette: fades the far field toward black so the area of interest reads as
+     a lit halo in a dark void (brings back the "on black" drama). -->
+<div id="vignette"></div>
+<!-- Build version stamp (bottom-left) — set by app.js so a stale cache is obvious. -->
+<div id="version-tag"></div>
+
+<!-- Search is functionally retained but visually hidden — drives geocoding logic only. -->
+<div id="search-wrap" hidden>
+  <input id="search" type="search" autocomplete="off">
+  <ul id="search-results" hidden></ul>
+</div>
+
+<!-- Bottom dock: free-floating glass pills over the map (no container box). -->
+<section data-glass id="dock">
+  <div id="scrubber-wrap">
+    <input id="scrubber" type="range" min="0" max="1439" step="1" value="720" aria-label="Time of day">
+    <div id="scrubber-ticks"></div>
+  </div>
+
+  <!-- One consolidated line: time, date, angle, then the icon buttons. -->
+  <div id="control-row" class="ctl-row">
+    <div id="time-hh-wrap" data-glass="button" style="position:relative">
+      <div id="time-hh">12:00</div>
+      <!-- Transparent time input overlaid on time display — native picker on tap -->
+      <input id="time-exact-input" type="time" aria-label="Set exact time"
+             style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;border:0;padding:0;margin:0;font-size:16px;-webkit-appearance:none;background:transparent;">
+    </div>
+    <label id="date-btn" data-glass="button" for="date-input" class="ghostbtn" aria-label="Pick date">
+      <span id="date-label">Today</span>
+      <input id="date-input" type="date" tabindex="-1" aria-hidden="true">
+    </label>
+    <span id="sun-alt" aria-live="polite" aria-label="Altitude"></span>
+
+    <button id="data-btn" data-glass="button" class="ctlbtn toggle" aria-pressed="false" aria-label="Data panel">
+      <span style="font-size:11px;font-weight:500;letter-spacing:0.04em">DATA</span>
+    </button>
+
+    <button id="align-wizard-btn" data-glass="button" class="ctlbtn toggle" aria-pressed="false" aria-label="Alignment search">
+      <svg width="22" height="22" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M15 15l5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    </button>
+
+    <button id="lock-btn" data-glass="button" class="ctlbtn toggle" aria-pressed="false" aria-label="Lock observer and heights">
+      <svg width="22" height="22" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 11V7a4 4 0 0 1 8 0v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    </button>
+
+    <button id="saves-btn" data-glass="button" class="ctlbtn toggle" aria-pressed="false" aria-label="Saves">
+      <svg width="22" height="22" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+
+  </div>
+
+  <div id="past-warning" hidden aria-live="polite">
+    <svg width="14" height="14" viewBox="0 0 24 24"><path d="M12 3 1 21h22z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="17" r="1" fill="currentColor"/></svg>
+    <span>You're looking at the past</span>
+  </div>
+
+  <div id="shadow-elev-panel">
+    <div class="elev-row">
+      <label for="shadow-elev">Target</label>
+      <input id="shadow-elev" type="range" min="0" max="1000" step="1" value="0">
+      <input id="shadow-elev-val" class="elev-num" type="number" min="0" max="1000" step="1" value="0" inputmode="numeric" aria-label="Target height in metres">
+      <span class="elev-unit">m</span>
+    </div>
+    <div class="elev-row">
+      <label for="floor-elev">Floor</label>
+      <input id="floor-elev" type="range" min="0" max="1000" step="1" value="0">
+      <input id="floor-elev-val" class="elev-num" type="number" min="0" max="1000" step="1" value="0" inputmode="numeric" aria-label="Floor height in metres">
+      <span class="elev-unit">m</span>
+    </div>
+  </div>
+
+
+</section>
+
+<!-- Sun/moon toggle: pinned top-left, mirrors the vertical sliders top-right. -->
+<button data-glass="clear" id="body-toggle" class="ctlbtn" aria-label="Toggle sun/moon">
+  <svg id="body-icon-sun" class="ico hide" width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/><g stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.5 4.5l2 2M17.5 17.5l2 2M19.5 4.5l-2 2M6.5 17.5l-2 2"/></g></svg>
+  <svg id="body-icon-moon" class="ico" width="22" height="22" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor"/></svg>
+</button>
+
+<!-- Right-edge vertical sliders: arc radius (lower 2/3) and map tilt (upper 1/3) -->
+<input data-glass="clear" id="tilt-slider" class="vslider tilt" type="range" min="0" max="85" step="1" value="45" orient="vertical" aria-label="Map tilt">
+<input data-glass="clear" id="radius-slider" class="vslider radius" type="range" min="0" max="1000" step="1" value="873" orient="vertical" aria-label="Arc radius">
+
+<!-- Right-edge buttons under the sliders: locate + live-motion (compass). -->
+<div id="edge-controls">
+  <button data-glass="clear" id="locate-btn" class="ctlbtn" aria-label="Center on my location">
+    <svg width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="currentColor"/><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
+  <button data-glass="clear" id="compass-toggle" class="ctlbtn toggle" aria-pressed="false" aria-label="Live motion data">
+    <svg width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m12 5 2 7-2 7-2-7z" fill="currentColor"/></svg>
+  </button>
+</div>
+
+<div data-glass id="toast" class="glass" hidden></div>
+
+<!-- Save / load shots — centred dialog, opened by the bookmark button -->
+<div data-glass id="save-modal" class="glass" hidden>
+  <div class="saves-title">Save</div>
+  <input id="save-name-input" type="text" class="save-name-input" autocomplete="off" spellcheck="false" aria-label="Shot name">
+  <div class="save-modal-btns">
+    <button id="save-pos-btn" data-glass="button" class="data-action-btn" aria-label="Save just the location">Save position</button>
+    <button id="save-ok-btn" data-glass="button" class="data-action-btn" aria-label="Save the full state">Save full state</button>
+  </div>
+  <div class="save-modal-btns save-modal-btns-secondary">
+    <button id="save-cancel-btn" data-glass="button" class="data-action-btn save-modal-cancel">Cancel</button>
+  </div>
+  <div class="saves-list-title saves-scope-row">
+    <span class="saves-title" style="margin:0">Load</span>
+    <button id="saves-scope-btn" data-glass="button" class="ctlbtn toggle saves-scope-btn" aria-pressed="false" aria-label="Toggle positions/full states list">Positions</button>
+  </div>
+  <div id="saves-list"></div>
+</div>
+
+<!-- Shot data — big read-only readout of the current shot's numbers + copy button -->
+<div data-glass id="data-modal" class="glass" hidden>
+  <div class="saves-title">Shot data</div>
+  <pre id="data-text" class="data-text"></pre>
+  <div class="save-modal-btns">
+    <button id="data-close-btn" data-glass="button" class="data-action-btn save-modal-cancel">Close</button>
+    <button id="data-copy-btn" data-glass="button" class="data-action-btn">Copy to clipboard</button>
+  </div>
+</div>
+
+<!-- Shot wizard — find when the sun lines up behind the caster from your camera. -->
+<div id="align-panel" class="glass" hidden>
+  <button id="align-close" class="align-close-btn" aria-label="Close">×</button>
+  <div id="align-step-a">
+    <div class="align-label"><span class="dot-a"></span> Set caster</div>
+    <p class="align-hint">Tap the map to place ground zero, then set the caster height with the caster slider.</p>
+    <button id="align-next-btn" class="data-action-btn">Next</button>
+  </div>
+  <div id="align-step-b" hidden>
+    <div class="align-label"><span class="dot-b"></span> Pick camera location</div>
+    <p class="align-hint">Tap where you'll shoot from, then set its elevation with the floor slider.</p>
+    <button id="align-done-btn" class="data-action-btn" disabled>Done</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script type="module" src="js/app.js?v=121"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.update())).catch(() => {});
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+// Failsafe: the staged intro can run several seconds (it waits for full tile load, then
+// fades through stages). If app.js never runs (load error), drop the boot state AND lift
+// the veil after 12s — longer than the longest intro — so the screen can't get stuck black.
+setTimeout(() => {
+  document.body.classList.remove('booting');
+  var v = document.getElementById('boot-veil');
+  if (v) v.style.opacity = '0';
+}, 12000);
+</script>
+</body>
+</html>

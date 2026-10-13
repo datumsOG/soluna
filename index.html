@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://photon.komoot.io">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <script>
-// 2026-10-10: the app moved from (dev server) to https://blairz.ca/soluna/.
+// 2026-10-10: the app moved from dev.example.org to https://blairz.ca/soluna/.
 // Saved shots live in the browser, filed under the address they were made at, so a plain
 // redirect would leave them behind. The old address therefore packs them into the link it
 // forwards to, and the new address unpacks them here before the app starts.
@@ -23,7 +23,7 @@
   var NEW = 'https://blairz.ca/soluna/';
   var KEYS = ['sun_saves', 'sun_ui', 'sunv2_reminders_v1'];
   try {
-    if (location.hostname === '(dev server)') {
+    if (location.hostname === 'dev.example.org') {
       var bag = {};
       KEYS.forEach(function (k) { var v = localStorage.getItem(k); if (v) bag[k] = v; });
       var parts = [];
@@ -207,7 +207,7 @@
 </div>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script type="module" src="js/app.js?v=122"></script>
+<script type="module" src="js/app.js?v=123"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

@@ -1,6 +1,6 @@
 // core.glsl.js — the one glass shader. Hosts differ only in where u_tex comes from.
 //
-// Technique and failure modes: (internal path)
+// Technique and failure modes: glass-ui-kit/docs/liquid-glass.md
 //
 // Every element is a rounded box. Two kinds (u_meta[i].y):
 //   0  pane    a sheet of glass

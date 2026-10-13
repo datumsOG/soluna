@@ -302,7 +302,7 @@ body.lg .ctlbtn.toggle[aria-pressed="true"][data-glass-off] { background: rgba(2
    pane's edge. The outer ~16px of a pane is the bevel — the band where the
    background is displaced — so anything there is visibly warped. Inset the dock's
    contents past it. Same rule applies to every glass surface in every app; it's
-   written up as failure mode 6 in (internal path) */
+   written up as failure mode 6 in glass-ui-kit/docs/liquid-glass.md. */
 body.lg #dock {
   /* Just enough to clear the bevel band; the pills inside carry their own
      padding, so anything more here is pure dead height (Blair, 2026-07-29 -

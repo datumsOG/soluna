@@ -439,7 +439,7 @@ function restackLayers(map) {
     } catch {}
     // ?glassdebug — health as TEXT on the real device. A black screenshot proves
     // nothing (headless won't rasterise vector tiles), so this is how we actually
-    // know whether the glass is running. See (internal path)
+    // know whether the glass is running. See glass-ui-kit/docs/liquid-glass.md.
     if (/(^|[#?&])glassdebug\b/.test(location.search + location.hash) && !document.getElementById('glass-dbg')) {
       const box = document.createElement('pre');
       box.id = 'glass-dbg';
@@ -499,7 +499,7 @@ function _unsafeZoneFrac(mapInstance) {
   return MIN_UNSAFE_FRAC + t * (MAX_UNSAFE_FRAC - MIN_UNSAFE_FRAC);
 }
 
-const APP_VERSION = "v122";
+const APP_VERSION = "v123";
 
 // Tapping a number box selects the number (Blair, 2026-10-10: a rule for every app). Typing
 // then replaces it; a second tap puts the cursor where he wants it.
@@ -508,6 +508,12 @@ document.addEventListener('focusin', (e) => {
   if (t && t.matches && t.matches('input[type="number"], input[inputmode="numeric"], input[inputmode="decimal"]')) setTimeout(() => { try { t.select(); } catch {} }, 0);
 });
 
+// It goes back to the page that linked here, at the place it was left (Blair, 2026-10-13:
+// it used to open the home page from the top). The count of history entries when the app
+// loaded says how far back that is, whatever the app has added since.
+const HISTORY_AT_LOAD = history.length;
+function siteBackHref() { try { const r = new URL(document.referrer); if (r.origin === location.origin) return r.href; } catch (e) {} return '/'; }
+function siteBack(e) { if (HISTORY_AT_LOAD > 1) { e.preventDefault(); history.go(HISTORY_AT_LOAD - history.length - 1); } }
 // Reached from the blairz.ca home page inside its home-screen icon there is no browser bar,
 // so no way back (Blair, 2026-10-10). Only then does the app show a back button.
 (() => {
@@ -516,9 +522,10 @@ document.addEventListener('focusin', (e) => {
   try { const r = new URL(document.referrer); fromSite = r.origin === location.origin && !r.pathname.startsWith(new URL('.', location.href).pathname); } catch {}
   if (!(standalone && fromSite) && !/[?&]standalone=1\b/.test(location.search)) return;
   const a = document.createElement('a');
-  a.id = 'site-back'; a.href = '/'; a.setAttribute('aria-label', 'Back to blairz.ca');
+  a.id = 'site-back'; a.href = siteBackHref(); a.setAttribute('aria-label', 'Back');
   a.innerHTML = '<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.5 4.5L7 10l5.5 5.5"/></svg>';
   document.body.appendChild(a);
+  a.addEventListener('click', siteBack);
   // It takes the corner the sun/moon button lives in, so that button moves down one place
   // (css/style.css). v120 put this on top of it and the toggle could not be reached.
   document.body.classList.add('has-site-back');

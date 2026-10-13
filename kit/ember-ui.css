@@ -38,8 +38,8 @@
 /* ember-ui.css — the standard controls for Blair's apps (Pulse, Sun, the assistant).
  *
  * Written 2026-09-22. Why each choice was made, and the research behind it:
- *   (internal path)
- * Live specimens, over the real glass shader:  (dev server)
+ *   internal/UI-STANDARD-2026-09-22.md
+ * Live specimens, over the real glass shader:  https://dev.example.org
  *
  * The one idea: the glass pane is the material, and controls are PRESSED INTO it
  * (inset wells), never floated on top of it as more glass. Exactly one thing per
@@ -65,7 +65,7 @@
  */
 
 /* Every value below comes from a CSS variable defined in tokens.css, which is generated
-   from (internal path) There are no literals to override here: to
+   from glass-ui-kit/src/tokens.json. There are no literals to override here: to
    change a size, a colour or a font, change the token. */
 
 /* ------------------------------------------------------------------ pane */

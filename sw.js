@@ -1,7 +1,7 @@
 // Network-first service worker. Always tries the network so deploys take
 // effect immediately; only falls back to cache when offline.
 
-const CACHE = 'sun-stable-v122';
+const CACHE = 'sun-stable-v123';
 const SHELL = ['./', './index.html', './manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {

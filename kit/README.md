@@ -1,11 +1,11 @@
 # Ember UI kit: putting a release into an app
 
 **Written:** 2026-10-09 21:32 UTC / 2026-10-09 17:32 EDT (Toronto)
-**Source of this file:** `(internal path)` on the VM (not hidden). A copy travels inside every release as `README.md`.
+**Source of this file:** `glass-ui-kit/docs/ADOPTING.md` on the VM (not hidden). A copy travels inside every release as `README.md`.
 
 ## What a release is
 
-A frozen folder, `(internal path)>/`. It is written once and never
+A frozen folder, `glass-ui-kit/releases/<version>/`. It is written once and never
 edited. An app gets its own copy of one release and keeps it until someone deliberately
 pins a newer one. Changing the kit cannot change an app.
 
@@ -22,17 +22,17 @@ pins a newer one. Changing the kit cannot change an app.
 
 `[VM]`
 ```
-node (internal path) pulse 1.0.0
+node glass-ui-kit/tools/kit-pin.mjs pulse 1.0.0
 ```
-You should see: `pulse: legacy -> 1.0.0 at (internal path)`.
-The app names come from `(internal path)`. Pinning copies files; the app
+You should see: `pulse: legacy -> 1.0.0 at toronto-bike-pulse/kit`.
+The app names come from `glass-ui-kit/apps.json`. Pinning copies files; the app
 uses them only once its pages point at them (below). Test on the phone afterwards.
 
 To see where every app stands:
 
 `[VM]`
 ```
-node (internal path)
+node glass-ui-kit/tools/kit-status.mjs
 ```
 
 ## Using it in a page
@@ -71,7 +71,7 @@ map.on('load', () => map.addLayer(createGlassLayer()));   // add it LAST
 ## Rules that are not optional
 
 1. **Never edit the copy inside an app.** If something is wrong, fix it in
-   `(internal path)`, cut a new version, and pin it. `kit-status` flags an
+   `glass-ui-kit/src/`, cut a new version, and pin it. `kit-status` flags an
    edited copy.
 2. **Nothing within 16 px of a pane's edge** (14 px for pills). That band bends the map.
 3. **Panes do not nest.** Glass buttons inside a pane are fine.
@@ -82,9 +82,9 @@ map.on('load', () => map.addLayer(createGlassLayer()));   // add it LAST
 
 ## Making a new version
 
-1. Change `(internal path)` (and bump its `version`) or the files in
-   `(internal path)`.
-2. Judge it on the bench: (dev server)
-3. `[VM]` `node (internal path) release`
+1. Change `glass-ui-kit/src/tokens.json` (and bump its `version`) or the files in
+   `glass-ui-kit/src/`.
+2. Judge it on the bench: https://dev.example.org
+3. `[VM]` `node glass-ui-kit/tools/build.mjs release`
    It refuses if that version already exists.
 4. Pin apps one at a time, on Blair's word.

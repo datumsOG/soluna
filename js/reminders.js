@@ -46,7 +46,7 @@ export async function requestNotifPermission() {
 export function sendNotification(reminder) {
   if (Notification.permission !== 'granted') return;
   const dt = new Date(reminder.datetime);
-  new Notification('Sun · Light Planner', {
+  new Notification('Soluna · Light Planner', {
     body: `Saved shot · ${dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${reminder.mode}`,
     icon: 'icons/icon-192.svg',
   });

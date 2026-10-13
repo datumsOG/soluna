@@ -1092,6 +1092,6 @@ body.mode-moon .shadow-end {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 body.booting #site-back { opacity: 0; }
-/* The sun/moon button gives up its corner to the back button and sits directly under it. */
-body.has-site-back #site-back { left: calc(12px + var(--safe-left)); z-index: 6; }
-body.has-site-back #body-toggle { top: calc(12px + var(--safe-top) + 44px + 10px); }
+/* The back button goes UNDER what is already in its corner, here the sun/moon button
+   (Blair, 2026-10-12: "always placed below existing UI elements"). */
+body.has-site-back #site-back { left: calc(12px + var(--safe-left)); top: calc(12px + var(--safe-top) + 44px + 10px); z-index: 6; }

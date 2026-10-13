@@ -1,17 +1,17 @@
-# Sun: plan a photograph around the light
+# Soluna: plan a photograph around the light
 
 By [Blair Zasitko](https://blairz.ca)
 
 **Open it: https://blairz.ca/soluna/** (made for a phone; add it to the home screen)
 
-<img src="docs/sun.jpg" alt="The Sun app: a 3D map of downtown Toronto with the sun's path drawn as an arc over the city" width="320">
+<img src="docs/sun.jpg" alt="Soluna: a 3D map of downtown Toronto with the sun's path drawn as an arc over the city" width="320">
 
-Choose where you will stand and what you want behind the sun or the moon. Sun draws the
+Choose where you will stand and what you want behind the sun or the moon. Soluna draws the
 body's path over a 3D map of the city, shows where shadows fall, and searches forward in time
 for the minute the light lines up with your landmark. Save a position and come back to see
 whether today is the day.
 
-Photographs planned with it: https://blairz.ca/apps/sun/
+Photographs planned with it: https://blairz.ca/apps/soluna/
 
 ## How it works
 
@@ -28,7 +28,7 @@ Photographs planned with it: https://blairz.ca/apps/sun/
 
 ## How it was made
 
-I designed Sun and directed its construction with AI coding agents (Claude Code): I wrote the
+I designed Soluna and directed its construction with AI coding agents (Claude Code): I wrote the
 specification, made the design decisions and tested each build on my own phone. The comments
 that quote me by date are the design decisions, kept next to the code they changed.
 

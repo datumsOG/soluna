@@ -499,7 +499,7 @@ function _unsafeZoneFrac(mapInstance) {
   return MIN_UNSAFE_FRAC + t * (MAX_UNSAFE_FRAC - MIN_UNSAFE_FRAC);
 }
 
-const APP_VERSION = "v121";
+const APP_VERSION = "v122";
 
 // Tapping a number box selects the number (Blair, 2026-10-10: a rule for every app). Typing
 // then replaces it; a second tap puts the cursor where he wants it.

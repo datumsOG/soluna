@@ -1,6 +1,6 @@
 {
-  "name": "Sun · light planner",
-  "short_name": "Sun",
+  "name": "Soluna · light planner",
+  "short_name": "Soluna",
   "description": "Sun alignment, light planning, and reflection vectors on an interactive map.",
   "start_url": "./",
   "scope": "./",
